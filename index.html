@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>StalSystem – Kalkulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- ════════════════════════════════════════════════════════════
+     FACEBOOK SDK + MESSENGER INTEGRATION
+     ════════════════════════════════════════════════════════════ -->
+<script>
+  // ✅ КРОК 1: Ініціалізація Facebook SDK
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '1586441419317001',  // ✅ Твій App ID від StalSystem Polska
+      cookie     : true,
+      xfbml      : true,
+      version    : 'v18.0'
+    });
+    
+    // Коли SDK завантажився — пробуємо зібрати PSID
+    collectPSID();
+  };
+
+  // ✅ КРОК 2: Завантажити Facebook SDK асинхронно
+  (function(d, s, id){
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) {return;}
+    js = d.createElement(s); js.id = id;
+    js.src = "https://connect.facebook.net/pl_PL/sdk.js";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+
+  // ✅ КРОК 3: ГІБРИДНИЙ ЗБІР PSID (працює на Android/iOS/Desktop)
+  function collectPSID() {
+    let psid = null;
+    let source = '';
+
+    // ═══ ПРІОРИТЕТ 1: REF параметр з URL (найнадійніший!) ═══
+    const urlParams = new URLSearchParams(window.location.search);
+    const refParam = urlParams.get('ref');
+    
+    if (refParam && refParam.length > 5) {
+      psid = refParam;
+      source = 'url_ref';
+      console.log('✅ PSID зібрано з URL ref:', psid);
+    }
+
+    // ═══ ПРІОРИТЕТ 2: Facebook SDK (для Desktop/Web) ═══
+    if (!psid && typeof FB !== 'undefined') {
+      try {
+        FB.getLoginStatus(function(response) {
+          if (response.status === 'connected') {
+            psid = response.authResponse.userID;
+            source = 'fb_sdk';
+            console.log('✅ PSID зібрано через FB SDK:', psid);
+            savePSID(psid, source);
+          }
+        });
+      } catch(e) {
+        console.log('⚠️ FB SDK не працює (це нормально для in-app browser)');
+      }
+    }
+
+    // Якщо PSID знайдено — зберігаємо
+    if (psid) {
+      savePSID(psid, source);
+    } else {
+      console.log('⚠️ PSID не знайдено — покажемо Customer Chat як fallback');
+      showMessengerWidget();
+    }
+
+    // ═══ Збираємо UTM параметри (звідки прийшов клієнт) ═══
+    const utmSource = urlParams.get('utm_source') || 'direct';
+    const utmMedium = urlParams.get('utm_medium') || '';
+    const utmCampaign = urlParams.get('utm_campaign') || '';
+    
+    document.getElementById('utm_source').value = utmSource;
+    document.getElementById('utm_medium').value = utmMedium;
+    document.getElementById('utm_campaign').value = utmCampaign;
+  }
+
+  // ✅ КРОК 4: Зберегти PSID в hidden field
+  function savePSID(psid, source) {
+    document.getElementById('messenger_psid').value = psid;
+    document.getElementById('psid_source').value = source;
+    
+    // Ховаємо Messenger віджет, якщо PSID вже є
+    hideMessengerWidget();
+    
+    console.log('💾 PSID збережено:', psid, '| Джерело:', source);
+  }
+
+  // ✅ КРОК 5: Показати/сховати Messenger віджет
+  function showMessengerWidget() {
+    const widget = document.querySelector('.fb-customerchat');
+    if (widget) widget.style.display = 'block';
+  }
+
+  function hideMessengerWidget() {
+    const widget = document.querySelector('.fb-customerchat');
+    if (widget) widget.style.display = 'none';
+  }
+
+  // ✅ КРОК 6: Автовизначення платформи (Android/iOS/Desktop)
+  function detectPlatform() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    let platform = 'Desktop';
+
+    if (/android/i.test(userAgent)) {
+      platform = 'Android';
+    } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+      platform = 'iOS';
+    }
+
+    document.getElementById('platform').value = platform;
+    console.log('📱 Платформа:', platform);
+  }
+
+  // ✅ Запускаємо визначення платформи при завантаженні
+  window.addEventListener('load', detectPlatform);
+</script>
+
+<!-- ════════════════════════════════════════════════════════════
+     FACEBOOK PIXEL (трекінг подій)
+     ════════════════════════════════════════════════════════════ -->
+<script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '934494976050338');
+  fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=934494976050338&ev=PageView&noscript=1"
+/></noscript>
+
+<style>
+:root{
+  --navy:#0d1f3c;
+  --navy-mid:#162d55;
+  --orange:#ff6b35;
+  --od:#e55a24;
+  --green:#10b981;
+  --gray:#64748b;
+  --gl:#f8fafc;
+  --border:#e2e8f0;
+  --shadow-card:0 4px 24px rgba(13,31,60,0.08);
+  --shadow-orange:0 6px 20px rgba(255,107,53,0.35);
+  --radius-btn:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Nunito',sans-serif;
+  background:#f0f4f8;
+  color:var(--navy);
+  -webkit-tap-highlight-color:transparent;
+  padding-bottom:20px;
+}
+
+/* ── TOP BAR ── */
+.topbar{
+  background:var(--navy);
+  padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 2px 12px rgba(13,31,60,0.3);
+}
+.topbar-logo{color:#fff;font-size:1.1rem;font-weight:900;line-height:1.1}
+.topbar-logo span{display:block;font-size:0.85rem;font-weight:400;opacity:0.7;border-top:1px solid rgba(255,255,255,0.2);margin-top:2px;padding-top:2px}
+.topbar-right{color:#fff;font-size:1.1rem;font-weight:900;text-align:right;line-height:1.1;text-transform:uppercase;letter-spacing:0.5px}
+.topbar-right span{color:var(--orange)}
+
+/* ── WRAP ── */
+.wrap{padding:10px}
+
+/* ── TABS ── */
+.ptabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.ptabs::-webkit-scrollbar{display:none}
+.ptab{
+  flex-shrink:0;background:#fff;
+  border:2px solid var(--border);border-radius:12px;
+  min-height:56px;padding:8px 10px;text-align:center;cursor:pointer;
+  font-family:'Nunito',sans-serif;font-weight:700;font-size:0.76rem;
+  color:var(--gray);transition:all .18s;line-height:1.3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(13,31,60,0.05);min-width:68px;
+}
+.ptab .ico{font-size:1.2rem;display:block;margin-bottom:2px}
+.ptab.on{
+  background:linear-gradient(135deg,var(--navy-mid),var(--navy));
+  border-color:transparent;color:#fff;
+  box-shadow:0 4px 14px rgba(13,31,60,0.3);
+  transform:translateY(-1px);
+}
+
+/* ── CARD ── */
+.card{
+  background:#fff;border-radius:20px;
+  box-shadow:var(--shadow-card);padding:16px;margin-bottom:10px;
+  border:1px solid rgba(255,255,255,0.9);
+}
+.ctitle{font-size:1.05rem;font-weight:900;margin-bottom:3px}
+.csub{color:var(--gray);font-size:0.8rem;margin-bottom:14px;line-height:1.45}
+.sec{display:none}.sec.on{display:block}
+
+/* ── FIELDS ── */
+.field{margin-bottom:14px}
+.field label{display:block;font-weight:800;font-size:0.8rem;margin-bottom:7px;color:var(--navy-mid)}
+.field input[type=number]{
+  width:100%;padding:13px 14px;
+  border:2px solid var(--border);border-radius:10px;
+  font-family:'Nunito',sans-serif;font-size:1rem;font-weight:600;
+  color:var(--navy);background:var(--gl);transition:all .18s;
+}
+.field input:focus{outline:none;border-color:var(--orange);background:#fff;box-shadow:0 0 0 3px rgba(255,107,53,0.1)}
+.field small{color:var(--gray);font-size:0.71rem;margin-top:4px;display:block}
+.slbl{
+  font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;
+  color:var(--gray);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.slbl::before,.slbl::after{content:'';flex:1;height:1px;background:var(--border)}
+.hdiv{border:none;border-top:2px dashed var(--border);margin:14px 0}
+
+/* ── TILES ── */
+.tiles{display:grid;gap:7px}
+.t2{grid-template-columns:repeat(2,1fr)}
+.t3{grid-template-columns:repeat(3,1fr)}
+.t4{grid-template-columns:repeat(4,1fr)}
+.tile{
+  background:var(--gl);border:2px solid var(--border);border-radius:10px;
+  min-height:48px;padding:10px 6px;text-align:center;cursor:pointer;
+  font-family:'Nunito',sans-serif;font-weight:700;font-size:0.82rem;
+  color:var(--navy);transition:all .15s;line-height:1.3;
+  user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;
+}
+.tile.on{
+  background:linear-gradient(135deg,var(--navy-mid),var(--navy));
+  border-color:transparent;color:#fff;
+  box-shadow:0 4px 12px rgba(13,31,60,0.22);
+}
+.tile.on::after{content:'✓';position:absolute;top:3px;right:6px;font-size:0.58rem;font-weight:900;color:var(--orange)}
+.tile s{font-size:0.68rem;font-weight:600;opacity:.65;font-style:normal;text-decoration:none}
+
+/* ── CALC BTN ── */
+.bcalc{
+  width:100%;padding:15px;
+  background:linear-gradient(135deg,var(--orange),var(--od));
+  color:#fff;border:none;border-radius:var(--radius-btn);
+  font-family:'Nunito',sans-serif;font-size:1.02rem;font-weight:900;
+  cursor:pointer;transition:all .2s;margin-top:4px;
+  box-shadow:var(--shadow-orange);
+}
+.bcalc:active{transform:scale(.98)}
+
+/* ── RESULT ── */
+.res{display:none;margin-top:14px}
+.res.on{display:block;animation:fup .35s ease}
+@keyframes fup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.pbox{
+  background:linear-gradient(135deg,#080f1e,var(--navy-mid),#0a1525);
+  border-radius:16px;padding:18px;color:#fff;margin-bottom:10px;
+  box-shadow:0 8px 28px rgba(13,31,60,0.35);position:relative;overflow:hidden;
+}
+.pbox::after{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,107,53,0.25),transparent 70%)}
+.plbl{font-size:0.76rem;opacity:.55;margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.pbig{font-size:2.4rem;font-weight:900;letter-spacing:-2px;line-height:1;position:relative;z-index:1}
+.pbig span{font-size:1rem;font-weight:700;opacity:.75;letter-spacing:0}
+.pmeta{margin-top:5px;opacity:.45;font-size:0.74rem;line-height:1.5;position:relative;z-index:1}
+.notice{background:linear-gradient(135deg,#fffbf5,#fff7ed);border:1.5px solid #fed7aa;border-radius:10px;padding:10px 13px;font-size:0.8rem;color:#92400e;margin-bottom:10px}
+.notice strong{color:#c2410c}
+.notice-fine{font-size:0.72rem;opacity:0.75;margin-top:5px;line-height:1.4}
+
+/* ── GRATIS BOX ── */
+.gratis-box{
+  background:#f9fafb;border:1px solid #10b981;border-radius:12px;
+  padding:12px 14px;margin-bottom:10px;
+}
+.gratis-title{font-size:0.82rem;font-weight:800;color:var(--navy);margin-bottom:8px}
+.gratis-items{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
+.gratis-item{display:flex;align-items:center;gap:8px;font-size:0.8rem;line-height:1.4}
+.gratis-icon{font-size:1.1rem}
+.gratis-text{flex:1;font-weight:600;color:var(--navy-mid)}
+.gratis-price{font-size:0.75rem;color:var(--gray);font-weight:600}
+.gratis-total{font-size:0.76rem;color:#059669;font-weight:700;text-align:center;padding-top:6px;border-top:1px solid #d1fae5}
+
+/* ── MONTAŻ DISCOUNT HINT ── */
+.montaz-hint{
+  background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);
+  border-radius:8px;padding:8px 11px;font-size:0.78rem;
+  color:#047857;margin-bottom:10px;line-height:1.5;
+}
+.montaz-hint strong{color:#065f46}
+.bkdn{background:var(--gl);border-radius:12px;padding:12px 13px;margin-bottom:10px;border:1px solid var(--border)}
+.bkdn h4{font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--navy);margin-bottom:8px}
+.brow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.83rem}
+.brow:last-child{border-bottom:none;font-weight:900;font-size:0.88rem;padding-top:8px}
+.brow .bp{font-weight:700;white-space:nowrap}
+.brow:last-child .bp{color:var(--orange)}
+
+/* ── LEAD ── */
+.lead{
+  background:linear-gradient(135deg,#0a1525,#162d55,#0a1525);
+  border-radius:16px;padding:16px;color:#fff;margin-top:10px;position:relative;overflow:hidden;
+}
+.lead::before{content:'';position:absolute;bottom:-40px;right:-40px;width:150px;height:150px;background:radial-gradient(circle,rgba(255,107,53,0.18),transparent 70%)}
+.lfomo{background:rgba(255,107,53,0.14);border:1px solid rgba(255,107,53,0.3);border-radius:8px;padding:7px 11px;font-size:0.78rem;color:#ff9a75;text-align:center;margin-bottom:12px}
+.lfomo strong{color:#fff}
+.lead h3{font-size:1.05rem;font-weight:900;margin-bottom:4px}
+.lead p{opacity:.72;font-size:0.82rem;line-height:1.65;margin-bottom:12px}
+.lbens{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:13px}
+.lben{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 9px;font-size:0.77rem;line-height:1.4;font-weight:600;text-align:center;display:flex;flex-direction:column;gap:2px}
+.lben strong{font-size:0.85rem;font-weight:900;color:#fff;display:block}
+.lben small{font-size:0.68rem;font-weight:600;opacity:0.7;display:block}
+
+/* ═══ CONTACT OPTIONS (checkboxes) ═══ */
+.contact-section{margin:16px 0}
+.contact-title{font-size:0.88rem;font-weight:800;color:#fff;margin-bottom:4px}
+.contact-subtitle{font-size:0.72rem;opacity:0.6;margin-bottom:10px}
+.contact-option{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 13px;
+  border:2px solid rgba(255,255,255,0.17);border-radius:10px;
+  margin-bottom:8px;cursor:pointer;transition:all .2s;
+  background:rgba(255,255,255,0.05);
+}
+.contact-option:hover{border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.08)}
+.contact-option input[type="checkbox"]{
+  width:20px;height:20px;margin-top:2px;cursor:pointer;
+  accent-color:var(--orange);
+}
+.contact-option-text{flex:1;font-size:0.85rem;font-weight:700;line-height:1.4}
+.contact-option-text small{display:block;font-size:0.72rem;font-weight:600;opacity:0.65;margin-top:3px}
+.messenger-phone-display{
+  display:block;font-size:0.74rem;font-weight:600;
+  color:var(--orange);margin-top:4px;opacity:0.9;
+}
+.contact-email-field{margin-top:8px;margin-bottom:12px;padding-left:30px}
+.contact-error{color:#fca5a5;font-size:0.75rem;margin-top:8px;display:none}
+.contact-error.on{display:block}
+
+/* ═══ TEXTAREA (додаткові питання) ═══ */
+.notes-section{margin:16px 0;padding-top:16px;border-top:2px dashed rgba(255,255,255,0.1)}
+.notes-title{font-size:0.88rem;font-weight:800;color:#fff;margin-bottom:4px}
+.notes-subtitle{font-size:0.72rem;opacity:0.6;margin-bottom:10px}
+.lfield textarea{
+  width:100%;min-height:80px;padding:12px 14px;
+  border:2px solid rgba(255,255,255,0.17);border-radius:10px;
+  font-family:'Nunito',sans-serif;font-size:0.88rem;font-weight:600;
+  color:#fff;background:rgba(255,255,255,0.08);
+  resize:vertical;line-height:1.5;transition:all .18s;
+}
+.lfield textarea::placeholder{color:rgba(255,255,255,0.45)}
+.lfield textarea:focus{outline:none;border-color:var(--orange);background:rgba(255,255,255,0.12);box-shadow:0 0 0 3px rgba(255,107,53,0.1)}
+.notes-hint{font-size:0.74rem;color:rgba(255,255,255,0.5);margin-top:6px;display:flex;align-items:center;gap:5px}
+.lform{margin-top:10px}
+.lfield{position:relative;margin-bottom:10px}
+.lfield label{
+  display:block;font-size:0.82rem;font-weight:700;
+  color:rgba(255,255,255,0.85);margin-bottom:6px;
+}
+.lfield input,.lfield select{
+  width:100%;padding:13px 14px;
+  border:2px solid rgba(255,255,255,0.17);border-radius:10px;
+  font-family:'Nunito',sans-serif;font-size:0.92rem;font-weight:600;
+  color:#fff;background:rgba(255,255,255,0.08);transition:all .18s;
+  position:relative;
+}
+.lfield input::placeholder{color:rgba(255,255,255,0.45)}
+.lfield input:focus{outline:none;border-color:var(--orange);background:rgba(255,255,255,0.12);box-shadow:0 0 0 3px rgba(255,107,53,0.1)}
+.field-hint{
+  font-size:0.74rem;color:rgba(255,255,255,0.55);
+  margin-top:5px;display:flex;align-items:center;gap:5px;
+  line-height:1.4;
+}
+
+/* ═══ INFO BOX (рамка під полем) ═══ */
+.info-box{
+  margin-top:8px;padding:10px 12px;
+  background:rgba(255,107,53,0.1);
+  border:1.5px solid rgba(255,107,53,0.3);
+  border-radius:8px;
+  font-size:0.8rem;font-weight:700;
+  color:rgba(255,255,255,0.9);
+  line-height:1.5;
+  display:flex;align-items:center;gap:8px;
+}
+
+/* ═══ ВАЛІДАЦІЯ ПОЛІВ (як в банку!) ═══ */
+.lfield input.valid{
+  border-color:#10b981 !important;
+  background:rgba(16,185,129,0.12) !important;
+}
+.lfield input.invalid{
+  border-color:#f59e0b !important;
+  background:rgba(245,158,11,0.08) !important;
+}
+.lfield input.err{
+  border-color:#ef4444 !important;
+  background:rgba(239,68,68,0.08) !important;
+  animation:shake .3s;
+}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.lerr{display:none;color:#fca5a5;font-size:0.75rem;margin-top:5px;font-weight:700}
+.lerr.on{display:block}
+.lfield select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%23fff' opacity='0.5' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:10px;padding-right:36px}
+.lfield select option{background:var(--navy-mid);color:#fff}
+.lbtn{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--orange),var(--od));
+  color:#fff;border:none;border-radius:var(--radius-btn);
+  font-family:'Nunito',sans-serif;font-size:1rem;font-weight:900;
+  cursor:pointer;transition:all .2s;margin-top:6px;
+  box-shadow:var(--shadow-orange);
+}
+.lbtn:active{transform:scale(.98)}
+.lbtn:disabled{
+  opacity:0.5;
+  cursor:not-allowed;
+  transform:none !important;
+}
+.lok{display:none;text-align:center;padding:20px 10px}
+.lok.on{display:block}
+.lok .checkmark{width:60px;height:60px;border-radius:50%;background:var(--green);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:2rem;animation:pop .5s}
+@keyframes pop{0%{transform:scale(0)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+.lok h4{font-size:1.1rem;margin-bottom:5px}
+.lok p{opacity:.7;font-size:0.88rem}
+.bundle{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;margin-top:10px}
+.bt{font-size:0.85rem;line-height:1.5;margin-bottom:8px}
+.bt b{display:block;color:var(--orange);font-size:0.92rem;margin-top:3px}
+.bbndl{
+  width:100%;padding:11px;
+  background:rgba(255,255,255,0.11);
+  border:1.5px solid rgba(255,255,255,0.22);
+  color:#fff;border-radius:9px;
+  font-family:'Nunito',sans-serif;font-size:0.88rem;font-weight:800;
+  cursor:pointer;transition:all .15s;
+}
+.bbndl:hover{background:rgba(255,255,255,0.16)}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     FACEBOOK CUSTOMER CHAT PLUGIN
+     (показується тільки якщо PSID не зібрано з URL)
+     ════════════════════════════════════════════════════════════ -->
+<div id="fb-root"></div>
+<div class="fb-customerchat"
+  attribution="setup_tool"
+  page_id="61586439991801"
+  theme_color="#0f2341"
+  logged_in_greeting="Cześć! Masz pytania o ogrodzenie? 🏡"
+  logged_out_greeting="Cześć! Zaloguj się, aby napisać!"
+  style="display:none;">
+</div>
+
+<div class="topbar">
+  <div class="topbar-logo">StalSystem<span>Polska</span></div>
+  <div class="topbar-right">od <span>56</span> zł/mb</div>
+</div>
+
+<div class="wrap">
+
+<!-- ════════════════════════════════════════════════════════════
+     PRODUCT TABS
+     ════════════════════════════════════════════════════════════ -->
+<div class="ptabs">
+  <div class="ptab on" onclick="tab('og')"><span class="ico">🏡</span>Ogrodzenie 3D</div>
+  <div class="ptab" onclick="tab('br')"><span class="ico">🚪</span>Brama</div>
+  <div class="ptab" onclick="tab('fu')"><span class="ico">🚶</span>Furtka</div>
+  <div class="ptab" onclick="tab('wi')"><span class="ico">🏠</span>Wiata</div>
+  <div class="ptab" onclick="tab('dl')"><span class="ico">💎</span>Ogrodzenie DELUXE</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     OGRODZENIE 3D
+     ════════════════════════════════════════════════════════════ -->
+<div class="sec on" id="sec-og">
+  <div class="card">
+    <div class="ctitle">Ogrodzenie panelowe 3D</div>
+    <div class="csub">Oblicz cenę dla swojej posesji</div>
+
+    <div class="field">
+      <label>Wysokość paneli</label>
+      <div class="tiles t3" id="og-h-tiles">
+        <div class="tile" onclick="sel('og-h','1.03')">1.03 m</div>
+        <div class="tile" onclick="sel('og-h','1.23')">1.23 m</div>
+        <div class="tile" onclick="sel('og-h','1.33')">1.33 m <s>hit</s></div>
+        <div class="tile" onclick="sel('og-h','1.53')">1.53 m <s>pop</s></div>
+        <div class="tile" onclick="sel('og-h','1.73')">1.73 m <s>pop</s></div>
+        <div class="tile" onclick="sel('og-h','2.03')">2.03 m</div>
+        <div class="tile" onclick="sel('og-h','2.43')">2.43 m</div>
+      </div>
+      <input type="hidden" id="og-h">
+    </div>
+
+    <div class="field">
+      <label>Długość ogrodzenia (m)</label>
+      <input type="number" id="og-len" value="30" min="5" max="500" step="1">
+      <small>Od 5 do 500 metrów</small>
+    </div>
+
+    <div class="field">
+      <label>Podmurówka betonowa</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="sel('og-pod','no')">Bez podmurówki</div>
+        <div class="tile" onclick="sel('og-pod','yes')">Z podmurówką<br><s>+45 zł/sekcja</s></div>
+      </div>
+      <input type="hidden" id="og-pod" value="no">
+    </div>
+
+    <div class="slbl">Opcje dodatkowe</div>
+
+    <div class="field">
+      <label>Zakres usługi</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="sel('og-mode','mat')">Tylko materiał</div>
+        <div class="tile" onclick="sel('og-mode','full')">Materiał + Montaż</div>
+      </div>
+      <input type="hidden" id="og-mode" value="mat">
+    </div>
+
+    <div class="field">
+      <label>Krajobraz (zł/mb)</label>
+      <input type="number" id="og-land" value="0" min="0" max="500" step="10">
+    </div>
+
+    <div class="field">
+      <label>Oświetlenie LED (zł/mb)</label>
+      <input type="number" id="og-led" value="0" min="0" max="200" step="10">
+    </div>
+
+    <button class="bcalc" onclick="calcOg()">🧮 Oblicz cenę</button>
+    <div class="res" id="res-og"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     BRAMA
+     ════════════════════════════════════════════════════════════ -->
+<div class="sec" id="sec-br">
+  <div class="card">
+    <div class="ctitle">Brama wjazdowa</div>
+    <div class="csub">Dwuskrzydłowa, przesuwna lub BOX</div>
+
+    <div class="field">
+      <label>Typ bramy</label>
+      <div class="tiles t3">
+        <div class="tile on" onclick="sel('br-type','dwu');buildBr()">Dwuskrzydłowa</div>
+        <div class="tile" onclick="sel('br-type','przes');buildBr()">Przesuwna</div>
+        <div class="tile" onclick="sel('br-type','box');buildBr()">BOX</div>
+      </div>
+      <input type="hidden" id="br-type" value="dwu">
+    </div>
+
+    <div class="field">
+      <label>Rozmiar (wys / szer)</label>
+      <div class="tiles t2" id="br-size-tiles"></div>
+      <input type="hidden" id="br-size">
+    </div>
+
+    <div class="field">
+      <label>Zakres usługi</label>
+      <div class="tiles t3">
+        <div class="tile on" onclick="sel('br-mont','no')">Tylko materiał</div>
+        <div class="tile" onclick="sel('br-mont','basic')">Z montażem</div>
+        <div class="tile" onclick="sel('br-mont','full')">Pod klucz</div>
+      </div>
+      <input type="hidden" id="br-mont" value="no">
+    </div>
+
+    <div class="field">
+      <label>Automatyka (opcjonalnie)</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="selNum('br-auto',0)">Bez automatyki</div>
+        <div class="tile" onclick="selNum('br-auto',2500)">Z automatyką<br><s>+2500 zł</s></div>
+      </div>
+      <input type="hidden" id="br-auto" value="0">
+    </div>
+
+    <button class="bcalc" onclick="calcBr()">🧮 Oblicz cenę</button>
+    <div class="res" id="res-br"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     FURTKA
+     ════════════════════════════════════════════════════════════ -->
+<div class="sec" id="sec-fu">
+  <div class="card">
+    <div class="ctitle">Furtka wejściowa</div>
+    <div class="csub">DUOS BOX lub DUOS 2D</div>
+
+    <div class="field">
+      <label>Typ furtki</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="sel('fu-type','box');buildFu()">DUOS BOX</div>
+        <div class="tile" onclick="sel('fu-type','2d');buildFu()">DUOS 2D</div>
+      </div>
+      <input type="hidden" id="fu-type" value="box">
+    </div>
+
+    <div class="field">
+      <label>Wysokość</label>
+      <div class="tiles t3" id="fu-size-tiles"></div>
+      <input type="hidden" id="fu-size">
+    </div>
+
+    <div class="field">
+      <label>Montaż</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="selNum('fu-mont',0)">Bez montażu</div>
+        <div class="tile" onclick="selNum('fu-mont',450)">Z montażem<br><s>+450 zł</s></div>
+      </div>
+      <input type="hidden" id="fu-mont" value="0">
+    </div>
+
+    <div class="field">
+      <label>Ilość furtek</label>
+      <div class="tiles t4">
+        <div class="tile on" onclick="sel('fu-qty','1')">1 szt</div>
+        <div class="tile" onclick="sel('fu-qty','2')">2 szt</div>
+        <div class="tile" onclick="sel('fu-qty','3')">3 szt</div>
+        <div class="tile" onclick="sel('fu-qty','4')">4 szt</div>
+      </div>
+      <input type="hidden" id="fu-qty" value="1">
+    </div>
+
+    <button class="bcalc" onclick="calcFu()">🧮 Oblicz cenę</button>
+    <div class="res" id="res-fu"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     WIATA / GARAŻ
+     ════════════════════════════════════════════════════════════ -->
+<div class="sec" id="sec-wi">
+  <div class="card">
+    <div class="ctitle">Wiata stalowa / Garaż</div>
+    <div class="csub">Konstrukcja stalowa z pokryciem</div>
+
+    <div class="field">
+      <label>Powierzchnia (m²)</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="sel('wi-sqm','24')">24 m²<br><s>6×4</s></div>
+        <div class="tile" onclick="sel('wi-sqm','30')">30 m²<br><s>6×5</s></div>
+        <div class="tile" onclick="sel('wi-sqm','custom')">Inna wielkość</div>
+      </div>
+      <input type="hidden" id="wi-sqm" value="24">
+    </div>
+
+    <div class="field" id="wi-cv-field" style="display:none">
+      <label>Podaj powierzchnię (m²)</label>
+      <input type="number" id="wi-cv" value="24" min="10" max="200" step="1">
+    </div>
+
+    <div class="field">
+      <label>Zakres usługi</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="sel('wi-mode','mat')">Tylko materiał</div>
+        <div class="tile" onclick="sel('wi-mode','full')">Pod klucz</div>
+      </div>
+      <input type="hidden" id="wi-mode" value="mat">
+    </div>
+
+    <div class="field">
+      <label>Brama przesuwna (opcja)</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="sel('wi-gate','no')">Bez bramy</div>
+        <div class="tile" onclick="sel('wi-gate','yes')">Z bramą 4m<br><s>–15% rabat</s></div>
+      </div>
+      <input type="hidden" id="wi-gate" value="no">
+    </div>
+
+    <button class="bcalc" onclick="calcWi()">🧮 Oblicz cenę</button>
+    <div class="res" id="res-wi"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     DELUXE
+     ════════════════════════════════════════════════════════════ -->
+<div class="sec" id="sec-dl">
+  <div class="card">
+    <div class="ctitle">Ogrodzenie DELUXE</div>
+    <div class="csub">Premium linia – wyjątkowa estetyka</div>
+
+    <div class="field">
+      <label>Wysokość</label>
+      <div class="tiles t3">
+        <div class="tile on" onclick="sel('dl-h','1.23')">1.23 m</div>
+        <div class="tile" onclick="sel('dl-h','1.53')">1.53 m</div>
+        <div class="tile" onclick="sel('dl-h','1.73')">1.73 m</div>
+        <div class="tile" onclick="sel('dl-h','2.03')">2.03 m</div>
+      </div>
+      <input type="hidden" id="dl-h" value="1.23">
+    </div>
+
+    <div class="field">
+      <label>Długość (m)</label>
+      <input type="number" id="dl-len" value="20" min="5" max="500" step="1">
+    </div>
+
+    <div class="field">
+      <label>Zakres usługi</label>
+      <div class="tiles t2">
+        <div class="tile on" onclick="sel('dl-mode','mat')">Tylko materiał</div>
+        <div class="tile" onclick="sel('dl-mode','full')">Materiał + Montaż</div>
+      </div>
+      <input type="hidden" id="dl-mode" value="mat">
+    </div>
+
+    <button class="bcalc" onclick="calcDl()">🧮 Oblicz cenę</button>
+    <div class="res" id="res-dl"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// PRICING CONSTANTS (MetFence)
+// ════════════════════════════════════════════════════════════
+const MAR=1.25;
+const P={
+  sw:2.5,
+  panel:{'1.03':57,'1.23':62,'1.33':66,'1.53':75,'1.73':84,'2.03':97,'2.43':115},
+  post:{'1.23':28,'1.43':32,'1.73':38,'2.23':48,'2.63':58},
+  cps:{'1.03':4,'1.23':4,'1.33':4,'1.53':6,'1.73':6,'2.03':6,'2.43':6},
+  clip:1.2,
+  inst:{'1.03':120,'1.23':120,'1.33':120,'1.53':135,'1.73':150,'2.03':165,'2.43':180},
+  podMat:45,
+  podInst:{'1.03':15,'1.23':15,'1.33':15,'1.53':18,'1.73':20,'2.03':22,'2.43':25}
+};
+const DL_MAT={'1.23':180,'1.53':195,'1.73':210,'2.03':230};
+const DL_INST={'1.23':140,'1.53':150,'1.73':160,'2.03':175};
+const BR={
+  dwu:{'1.53/3.00':1680,'1.53/3.50':1780,'1.53/4.00':1880,'1.73/3.00':1780,'1.73/3.50':1900,'1.73/4.00':2020,'2.03/3.00':1980,'2.03/3.50':2120,'2.03/4.00':2260},
+  przes:{'1.53/3.50':2560,'1.53/4.00':2720,'1.70/4.00':2880,'1.70/5.00':3200,'2.03/4.00':3200,'2.03/5.00':3520},
+  box:{'1.53/3.00':1800,'1.53/3.50':1920,'1.73/3.00':1920,'1.73/3.50':2050,'2.03/3.00':2140,'2.03/3.50':2290}
+};
+const BR_INST={no:{dwu:0,przes:0,box:0},basic:{dwu:800,przes:1200,box:800},full:{dwu:1400,przes:2000,box:1400}};
+const FU={box:{'1.03':520,'1.23':550,'1.53':600,'1.73':650,'2.03':720},'2d':{'1.23':580,'1.53':630,'1.73':680,'2.03':750}};
+const WI_MAT=160,WI_FULL=240,WI_M=1.35;
+
+function postH(h){const x=parseFloat(h);return x<=1.33?'1.23':x<=1.73?'1.73':x<=2.03?'2.23':'2.63';}
+function mult(len){return len<30?1.30:len<70?1.25:len<100?1.15:1.0;}
+function fmt(n){return Math.round(n).toLocaleString('pl-PL');}
+function gv(id){return document.getElementById(id).value;}
+function tab(id){
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('on'));
+  event.target.closest('.ptab').classList.add('on');
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.getElementById('sec-'+id).classList.add('on');
+}
+function sel(fid,val){
+  document.getElementById(fid).value=val;
+  const p=event.target.closest('.tiles');
+  p.querySelectorAll('.tile').forEach(t=>t.classList.remove('on'));
+  event.target.classList.add('on');
+  if(fid==='wi-sqm'){
+    document.getElementById('wi-cv-field').style.display=val==='custom'?'block':'none';
+  }
+}
+function selNum(fid,val){sel(fid,val.toString());}
+function buildBr(){
+  const type=gv('br-type');
+  const sizes=Object.keys(BR[type]);
+  let html='';
+  sizes.forEach((s,i)=>{
+    const cls=i===0?'tile on':'tile';
+    html+=`<div class="${cls}" onclick="sel('br-size','${s}')">${s.replace('/','\n× ')}</div>`;
+  });
+  document.getElementById('br-size-tiles').innerHTML=html;
+  document.getElementById('br-size').value=sizes[0];
+}
+function buildFu(){
+  const type=gv('fu-type');
+  const sizes=Object.keys(FU[type]);
+  let html='';
+  sizes.forEach((s,i)=>{
+    const cls=i===0?'tile on':'tile';
+    html+=`<div class="${cls}" onclick="sel('fu-size','${s}')">${s}</div>`;
+  });
+  document.getElementById('fu-size-tiles').innerHTML=html;
+  document.getElementById('fu-size').value=sizes[0];
+}
+
+// ════════════════════════════════════════════════════════════
+// LEAD FORM GENERATION
+// ════════════════════════════════════════════════════════════
+function leadHTML(product,price){
+  const id=Date.now();
+  return`
+<div class="lead">
+  <div style="background:linear-gradient(135deg,rgba(255,107,53,0.15),rgba(255,107,53,0.08));border:1.5px solid rgba(255,107,53,0.4);border-radius:12px;padding:14px;margin-bottom:16px;">
+    <div style="font-size:0.95rem;font-weight:800;color:#fff;margin-bottom:10px">📋 Chcesz dokładną wycenę?</div>
+    <div style="font-size:0.82rem;color:rgba(255,255,255,0.9);line-height:1.5;margin-bottom:8px">
+      To cena orientacyjna. Po pomiarze może być niższa nawet o 10%.
+    </div>
+    <div style="font-size:0.82rem;color:rgba(255,255,255,0.9);line-height:1.5;margin-bottom:8px">
+      <strong>💰 Przy zamówieniu ogrodzenia + bramy + furtki — rabat do 10% NA MONTAŻ!</strong>
+    </div>
+    <div style="font-size:0.78rem;color:rgba(255,255,255,0.85);margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,0.2)">
+      ✅ Odpisujemy w 30 minut<br>
+      ✅ Bez zobowiązań
+    </div>
+    <div style="font-size:0.74rem;color:rgba(255,255,255,0.7);margin-top:8px;display:flex;align-items:center;gap:5px">
+      ℹ️ Pomiar 300 zł — odliczamy od zamówienia
+    </div>
+  </div>
+  
+  <div style="background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.05));border:1.5px solid rgba(16,185,129,0.3);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+    <div style="font-size:2.2rem;flex-shrink:0;">✅</div>
+    <div>
+      <div style="font-weight:900;font-size:0.88rem;color:#fff;line-height:1.3;margin-bottom:3px;">Zaufało nam już <strong style="color:#10b981;">500+ klientów</strong> w Wielkopolsce</div>
+      <div style="font-size:0.76rem;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:6px;">
+        <span style="color:#fbbf24;">⭐⭐⭐⭐⭐</span>
+        <span><strong style="color:#10b981;">4.9/5</strong> średnia ocena (127 opinii)</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="lfomo">⏰ <strong>Oferta ważna 48h!</strong> Zapisz się teraz 👇</div>
+  <h3>📩 Otrzymaj ofertę w PDF</h3>
+  <p>Wyślemy szczegółową wycenę w 30 minut!</p>
+  <div class="lbens">
+    <div class="lben"><strong>12 LAT</strong><small>gwarancja materiał</small></div>
+    <div class="lben"><strong>2 LATA</strong><small>gwarancja montaż</small></div>
+    <div class="lben"><strong>GRATIS</strong><small>wizualizacja 3D</small></div>
+    <div class="lben"><strong>GRATIS</strong><small>tabliczka (~150 zł)</small></div>
+    <div class="lben"><strong>GRATIS</strong><small>pomiar (odliczenie 300 zł)</small></div>
+  </div>
+  <div id="lf-${id}" class="lform">
+    <div class="lfield">
+      <label>Imię</label>
+      <input type="text" id="ln-${id}" placeholder="Np. Jan" oninput="validateName('${id}')">
+      <div class="lerr" id="lerr-n-${id}">⚠️ Podaj swoje imię (minimum 2 litery)</div>
+    </div>
+    <div class="lfield">
+      <label>Telefon (Facebook Messenger)</label>
+      <input type="tel" id="lp-${id}" value="+48 " oninput="fmtPhone('${id}')" placeholder="+48 123 456 789">
+      <div class="info-box">💬 Bezpłatna oferta w 30 minut przez Facebook Messenger</div>
+      <div class="lerr" id="lerr-p-${id}">⚠️ Podaj prawidłowy numer (9 cyfr)</div>
+    </div>
+    <div class="lfield">
+      <label>Miejscowość</label>
+      <input type="text" id="la-${id}" placeholder="Np. Poznań" oninput="validateAddress('${id}')">
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.6);margin-top:4px;padding-left:4px">💡 Do wyceny dostawy</div>
+      <div class="lerr" id="lerr-a-${id}">⚠️ Podaj miejscowość (minimum 3 znaki)</div>
+    </div>
+    <div class="lfield">
+      <label>Kod pocztowy (opcjonalnie)</label>
+      <input type="text" id="lk-${id}" placeholder="Np. 61-123" maxlength="6" oninput="fmtPostal(this)">
+    </div>
+    
+    <div class="contact-section">
+      <div class="contact-title">📄 Gdzie wyślemy ofertę PDF?</div>
+      <div class="contact-subtitle">(możesz wybrać jedno lub oba)</div>
+      
+      <label class="contact-option">
+        <input type="checkbox" id="contact-messenger-${id}" checked onchange="checkFormValid('${id}')">
+        <div class="contact-option-text">
+          📱 Facebook Messenger — oferta w 30 minut
+          <small>Na numer podany wyżej</small>
+          <span class="messenger-phone-display" id="messenger-phone-display-${id}"></span>
+        </div>
+      </label>
+      
+      <label class="contact-option">
+        <input type="checkbox" id="contact-email-${id}" onchange="toggleEmailField('${id}')">
+        <div class="contact-option-text">
+          📧 Email — oferta w 30 minut
+        </div>
+      </label>
+      
+      <div id="email-field-${id}" class="contact-email-field" style="display:none">
+        <input type="email" id="le-${id}" placeholder="Twój adres email" oninput="validateEmail('${id}');checkFormValid('${id}')">
+      </div>
+      
+      <div class="contact-error" id="contact-error-${id}">⚠️ Wybierz przynajmniej jeden sposób kontaktu</div>
+    </div>
+    
+    <div class="notes-section">
+      <div class="notes-title">💬 Dodatkowe pytania lub uwagi?</div>
+      <div class="notes-subtitle">(opcjonalnie)</div>
+      <div class="lfield">
+        <textarea id="ln-notes-${id}" placeholder="Np. Kiedy montaż? Furtka z lewej strony? Stary fundament?"></textarea>
+        <div class="notes-hint">ℹ️ Odpowiemy na Twoje pytania w ofercie PDF</div>
+      </div>
+    </div>
+    
+    <button class="lbtn" onclick="sendLead('${id}','${product}',${price})" disabled style="opacity:0.5">📄 Otrzymaj ofertę</button>
+  </div>
+  <div id="lo-${id}" class="lok">
+    <div class="checkmark">✓</div>
+    <h4>Dziękujemy!</h4>
+    <p>Oferta w PDF już leci! 💬</p>
+  </div>
+</div>`;
+}
+
+function fmtPostal(inp){
+  let v=inp.value.replace(/[^\d-]/g,'');
+  if(v.length>2&&v[2]!=='-')v=v.slice(0,2)+'-'+v.slice(2);
+  inp.value=v.slice(0,6);
+  
+  // ✅ REAL-TIME ВАЛІДАЦІЯ
+  inp.classList.remove('valid','invalid');
+  const ok=v.length===6 && v[2]==='-';
+  if(ok){
+    inp.classList.add('valid'); // ЗЕЛЕНЕ ✓
+  }else if(v.length>0){
+    inp.classList.add('invalid'); // ЖОВТЕ (в процесі)
+  }
+}
+
+function validateEmail(id){
+  const inp=document.getElementById('le-'+id);
+  const email=inp.value.trim();
+  
+  // ✅ ПЕРЕВІРКА EMAIL (щось@щось.щось)
+  const emailRegex=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isValid=emailRegex.test(email);
+  
+  inp.classList.remove('valid','invalid','err');
+  
+  if(email.length===0){
+    // Поле порожнє (opcjonalnie) — OK
+    return;
+  }
+  
+  if(isValid){
+    inp.classList.add('valid'); // ЗЕЛЕНЕ ✓
+  }else{
+    inp.classList.add('invalid'); // ЖОВТЕ (немає @ або неповний)
+  }
+}
+
+function validateName(id){
+  const inp=document.getElementById('ln-'+id);
+  const name=inp.value.trim();
+  
+  inp.classList.remove('valid','invalid','err');
+  document.getElementById('lerr-n-'+id).classList.remove('on');
+  
+  if(name.length>=2){
+    inp.classList.add('valid'); // ЗЕЛЕНЕ ✓
+  }else if(name.length>0){
+    inp.classList.add('invalid'); // ЖОВТЕ (за мало)
+  }
+  
+  // Перевіряємо чи можна активувати кнопку
+  checkFormValid(id);
+}
+
+function validateAddress(id){
+  const inp=document.getElementById('la-'+id);
+  const addr=inp.value.trim();
+  
+  inp.classList.remove('valid','invalid','err');
+  document.getElementById('lerr-a-'+id).classList.remove('on');
+  
+  if(addr.length>=3){
+    inp.classList.add('valid'); // ЗЕЛЕНЕ ✓
+  }else if(addr.length>0){
+    inp.classList.add('invalid'); // ЖОВТЕ (за мало)
+  }
+  
+  // Перевіряємо чи можна активувати кнопку
+  checkFormValid(id);
+}
+
+function checkFormValid(id){
+  const phoneEl=document.getElementById('lp-'+id);
+  const nameEl=document.getElementById('ln-'+id);
+  const addrEl=document.getElementById('la-'+id);
+  
+  const phoneDigits=phoneEl.value.replace(/\D/g,'').replace(/^48/,'');
+  const phoneOK=phoneDigits.length===9;
+  const nameOK=nameEl.value.trim().length>=2;
+  const addrOK=addrEl.value.trim().length>=3;
+  
+  // ✅ Перевіряємо checkboxes
+  const messengerChecked=document.getElementById('contact-messenger-'+id).checked;
+  const emailChecked=document.getElementById('contact-email-'+id).checked;
+  
+  // ✅ Мінімум 1 checkbox має бути checked
+  const atLeastOneContact=messengerChecked || emailChecked;
+  
+  // ✅ Якщо Email checked — перевіряємо валідність email
+  let emailOK=true;
+  if(emailChecked){
+    const emailEl=document.getElementById('le-'+id);
+    const emailValue=emailEl.value.trim();
+    const emailRegex=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    emailOK=emailRegex.test(emailValue);
+  }
+  
+  const btn=document.querySelector(`#lf-${id} .lbtn`);
+  const contactErr=document.getElementById('contact-error-'+id);
+  
+  // Показуємо помилку якщо жоден checkbox не обраний
+  if(!atLeastOneContact){
+    contactErr.classList.add('on');
+  }else{
+    contactErr.classList.remove('on');
+  }
+  
+  if(phoneOK && nameOK && addrOK && atLeastOneContact && emailOK){
+    btn.disabled=false;
+    btn.style.opacity='1';
+  }else{
+    btn.disabled=true;
+    btn.style.opacity='0.5';
+  }
+}
+
+function toggleEmailField(id){
+  const emailChecked=document.getElementById('contact-email-'+id).checked;
+  const emailField=document.getElementById('email-field-'+id);
+  
+  if(emailChecked){
+    emailField.style.display='block';
+  }else{
+    emailField.style.display='none';
+  }
+  
+  checkFormValid(id);
+}
+
+function clearErr(errId,inpId){
+  document.getElementById(errId).classList.remove('on');
+  document.getElementById(inpId).classList.remove('err');
+}
+function fmtPhone(id){
+  const inp=document.getElementById('lp-'+id);
+  let v=inp.value.replace(/[^\d+]/g,'');
+  
+  // Автоматично додаємо +48 якщо немає
+  if(!v.startsWith('+48'))v='+48'+v.replace(/^\+?48?/,'');
+  
+  // Витягуємо тільки цифри після +48
+  const digits=v.replace('+48','').replace(/\D/g,'');
+  
+  // ✅ БЛОКУЄМО ВВІД після 9 цифр (не дає ввести більше!)
+  const limitedDigits = digits.slice(0,9);
+  
+  // Форматуємо з пробілами: +48 XXX XXX XXX
+  let fmtStr='+48';
+  if(limitedDigits.length>0)fmtStr+=' '+limitedDigits.slice(0,3);
+  if(limitedDigits.length>3)fmtStr+=' '+limitedDigits.slice(3,6);
+  if(limitedDigits.length>6)fmtStr+=' '+limitedDigits.slice(6,9);
+  
+  inp.value=fmtStr;
+  
+  // ✅ ОНОВЛЮЄМО НОМЕР В CHECKBOX MESSENGER (динамічно!)
+  const messengerDisplay=document.getElementById('messenger-phone-display-'+id);
+  if(messengerDisplay && limitedDigits.length===9){
+    messengerDisplay.textContent='Wyślemy na '+fmtStr;
+  }else if(messengerDisplay){
+    messengerDisplay.textContent='';
+  }
+  
+  // ✅ REAL-TIME ВАЛІДАЦІЯ (зелене/жовте)
+  inp.classList.remove('err','valid','invalid');
+  document.getElementById('lerr-p-'+id).classList.remove('on');
+  
+  if(limitedDigits.length===9){
+    inp.classList.add('valid'); // ЗЕЛЕНЕ ✓
+  }else if(limitedDigits.length>0){
+    inp.classList.add('invalid'); // ЖОВТЕ (в процесі)
+  }
+  
+  // Перевіряємо чи можна активувати кнопку
+  checkFormValid(id);
+}
+
+// ════════════════════════════════════════════════════════════
+// SEND LEAD TO MAKE.COM (з PSID!)
+// ════════════════════════════════════════════════════════════
+function sendLead(id,product,price){
+  const phoneEl=document.getElementById('lp-'+id);
+  const addrEl=document.getElementById('la-'+id);
+  const phoneDigits=phoneEl.value.replace(/\D/g,'').replace(/^48/,'');
+  const nameEl=document.getElementById('ln-'+id);
+  let valid=true;
+  
+  // Validate
+  if(phoneDigits.length!==9){
+    phoneEl.classList.add('err');
+    document.getElementById('lerr-p-'+id).classList.add('on');
+    phoneEl.focus();valid=false;
+  }
+  if(nameEl.value.trim().length<2){
+    nameEl.classList.add('err');
+    document.getElementById('lerr-n-'+id).classList.add('on');
+    if(valid)nameEl.focus();valid=false;
+  }
+  const addrVal=addrEl.value.trim();
+  const postalVal=document.getElementById('lk-'+id).value.trim();
+  if(addrVal.length<3 && postalVal.length<6){
+    addrEl.classList.add('err');
+    document.getElementById('lerr-a-'+id).classList.add('on');
+    if(valid)addrEl.focus();valid=false;
+  }
+  
+  // ✅ Перевіряємо checkboxes
+  const messengerChecked=document.getElementById('contact-messenger-'+id).checked;
+  const emailChecked=document.getElementById('contact-email-'+id).checked;
+  
+  if(!messengerChecked && !emailChecked){
+    document.getElementById('contact-error-'+id).classList.add('on');
+    valid=false;
+  }
+  
+  // ✅ Якщо Email checked - валідуємо email
+  let emailValue='';
+  if(emailChecked){
+    const emailEl=document.getElementById('le-'+id);
+    emailValue=emailEl.value.trim();
+    const emailRegex=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!emailRegex.test(emailValue)){
+      emailEl.classList.add('err');
+      if(valid)emailEl.focus();valid=false;
+    }
+  }
+  
+  if(!valid)return;
+
+  const name=document.getElementById('ln-'+id).value.trim();
+  const addr=addrVal+(postalVal?' ('+postalVal+')':'');
+  const notes=document.getElementById('ln-notes-'+id).value.trim();
+  const priceClean=Math.round(price*100)/100;
+
+  // ✅ ЗБИРАЄМО PSID ТА ПЛАТФОРМУ З HIDDEN FIELDS
+  const messengerPSID = document.getElementById('messenger_psid').value;
+  const platform = document.getElementById('platform').value;
+  const utmSource = document.getElementById('utm_source').value;
+  const utmMedium = document.getElementById('utm_medium').value;
+  const utmCampaign = document.getElementById('utm_campaign').value;
+  const psidSource = document.getElementById('psid_source').value;
+
+  // Hide form, show success
+  document.getElementById('lf-'+id).style.display='none';
+  document.getElementById('lo-'+id).style.display='block';
+
+  // ✅ ВІДПРАВЛЯЄМО В MAKE.COM З УСІМА ДАНИМИ
+  fetch('https://hook.eu1.make.com/5a867aeh816mh19jc65f2mjxiajmhrnn',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      phone:'+48'+phoneDigits,
+      name,
+      address:addr,
+      product,
+      price:priceClean,
+      price_formatted:priceClean.toFixed(2)+' zł',
+      
+      // ✅ НОВІ ПОЛЯ (CHECKBOXES + EMAIL + NOTES)
+      send_messenger:messengerChecked,
+      send_email:emailChecked,
+      email:emailValue,
+      notes:notes,
+      
+      // ✅ PSID + PLATFORM + UTM
+      messenger_psid: messengerPSID,
+      platform: platform,
+      psid_source: psidSource,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
+      
+      source:'kalkulator_v4_final',
+      date:new Date().toISOString()
+    })
+  })
+  .then(response => {
+    console.log('✅ Webhook SUCCESS:', response.status);
+    // Track Facebook Pixel Lead event
+    fbq('track', 'Lead', {
+      value: priceClean,
+      currency: 'PLN',
+      content_name: product
+    });
+  })
+  .catch(err => {
+    console.log('❌ Webhook error:', err);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// RESULT HELPERS
+// ════════════════════════════════════════════════════════════
+function showRes(id,html){
+  const el=document.getElementById('res-'+id);
+  el.innerHTML=html;el.className='res on';
+  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+}
+function pbox(lbl,total,meta){return`<div class="pbox"><div class="plbl">${lbl}</div><div class="pbig">${fmt(total)} <span>zł</span></div><div class="pmeta">${meta}</div></div>`;}
+function ntc(txt){return`<div class="notice"><strong>⚠️ Wycena orientacyjna.</strong> ${txt}<div class="notice-fine">Pomiar 300 zł — odliczamy od zamówienia</div></div>`;}
+function gratisBox(){return`<div class="gratis-box"><div class="gratis-title">🎁 W cenie otrzymujesz GRATIS:</div><div class="gratis-items"><div class="gratis-item"><span class="gratis-icon">📐</span><span class="gratis-text">Wizualizacja 3D — wartość ~200 zł</span></div><div class="gratis-item"><span class="gratis-icon">🏷️</span><span class="gratis-text">Tabliczka adresowa — wartość ~150 zł</span></div></div><div class="gratis-total">Łączna wartość bonusów: ~350 zł</div></div>`;}
+function montazHint(){return`<div class="montaz-hint">💡 Ogrodzenie + Brama + Furtka razem? <strong>Rabat 5-10% na montaż</strong> (zależy od metrażu)!</div>`;}
+function bkdn(rows){return`<div class="bkdn"><h4>📋 Rozbicie kosztów</h4>${rows}</div>`;}
+function br(l,p){return`<div class="brow"><span>${l}</span><span class="bp">${fmt(p)} zł</span></div>`;}
+function brt(t){return`<div class="brow"><span>RAZEM (orientacyjnie)</span><span class="bp">${fmt(t)} zł</span></div>`;}
+
+// ════════════════════════════════════════════════════════════
+// CALCULATION FUNCTIONS
+// ════════════════════════════════════════════════════════════
+function calcOg(){
+  const h=parseFloat(gv('og-h'));
+  const len=Math.min(500,Math.max(5,parseFloat(gv('og-len'))||30));
+  const pod=gv('og-pod')==='yes';const mod=gv('og-mode');
+  const lnd=parseFloat(gv('og-land'))||0;const led=parseFloat(gv('og-led'))||0;
+  if(!P.panel[h]){alert('Wybierz wysokość paneli!');return;}
+  const sec=Math.ceil(len/P.sw);const m=mult(len);const pH=postH(h);
+  const panC=sec*P.panel[h]*m;const pstC=(sec+1)*P.post[pH];const clpC=sec*P.cps[h]*P.clip;
+  let matC=panC+pstC+clpC;let podM=0,podI=0;
+  if(pod){podM=sec*P.podMat;podI=sec*P.podInst[h];matC+=podM;}
+  let instC=0;
+  if(mod==='full'){instC=len*P.inst[h];if(pod)instC+=podI;}
+  const lndC=lnd*len,ledC=led*len;const total=matC+instC+lndC+ledC;
+  let rows=br(`Panele 3D — ${sec} szt`,panC)+br(`Słupki — ${sec+1} szt`,pstC)+br(`Zaciski`,clpC);
+  if(pod)rows+=br('Podmurówka',podM);
+  if(mod==='full'){rows+=br(`Montaż — ${len}m`,len*P.inst[h]);if(pod)rows+=br('Montaż podmurówki',podI);}
+  if(lndC>0)rows+=br('Krajobraz',lndC);if(ledC>0)rows+=br('LED',ledC);rows+=brt(total);
+  showRes('og',pbox(`Ogrodzenie 3D · ${mod==='full'?'Materiał + Montaż':'Tylko materiał'}`,total,`~${fmt(total/len)} zł/mb · ${len} m · dostawa osobno`)
+    +ntc('Ostateczna cena po pomiarze.')
+    +gratisBox()
+    +montazHint()
+    +bkdn(rows)+leadHTML(`Ogrodzenie 3D ${h}m × ${len}m`,total));
+}
+function calcDl(){
+  const h=parseFloat(gv('dl-h'));const len=Math.min(500,Math.max(5,parseFloat(gv('dl-len'))||20));
+  const mod=gv('dl-mode');
+  if(!DL_MAT[h]){alert('Wybierz wysokość!');return;}
+  const sec=Math.ceil(len/2.0);const matC=sec*DL_MAT[h]*MAR;
+  const instC=mod==='full'?len*DL_INST[h]:0;const total=matC+instC;
+  let rows=br(`DELUXE ${h}m — ${sec} sekcji`,matC);
+  if(mod==='full')rows+=br(`Montaż — ${len}m`,instC);
+  rows+=brt(total);
+  showRes('dl',pbox(`Ogrodzenie DELUXE · ${mod==='full'?'Materiał + Montaż':'Tylko materiał'}`,total,`${len} m · dostawa osobno`)
+    +ntc('Ostateczna cena po pomiarze. Cena bez słupków i łączników.')
+    +gratisBox()
+    +montazHint()
+    +bkdn(rows)+leadHTML(`DELUXE ${h}m × ${len}m`,total));
+}
+function calcBr(){
+  const type=gv('br-type');const size=gv('br-size');
+  const mont=gv('br-mont');const auto=parseFloat(gv('br-auto'))||0;
+  if(!size||!BR[type][size]){alert('Wybierz rozmiar bramy!');return;}
+  const matP=BR[type][size]*MAR;const instP=BR_INST[mont][type];const total=matP+instP+auto;
+  const tN={dwu:'Dwuskrzydłowa DUOS',przes:'Przesuwna DUOS',box:'Dwuskrzydłowa BOX'};
+  const mN={no:'Tylko materiał',basic:'Z montażem',full:'Pod klucz'};
+  const[h,w]=size.split('/');
+  let rows=br(`Brama ${tN[type]} ${h}m × ${w}m`,matP);
+  if(instP>0)rows+=br('Montaż',instP);if(auto>0)rows+=br('Automatyka',auto);rows+=brt(total);
+  showRes('br',pbox(`${tN[type]} · ${mN[mont]}`,total,`${h}m × ${w}m${auto>0?' · z automatyką':''} · dostawa osobno`)
+    +ntc('Ostateczna cena po pomiarze.')
+    +gratisBox()
+    +`<div class="bundle"><div class="bt">💡 Zamów kompleksowo (ogrodzenie + brama + furtka)<b>Rabat 5-10% na montaż!</b></div><button class="bbndl" onclick="document.querySelectorAll('.ptab')[0].click()">+ Ogrodzenie →</button></div>`
+    +bkdn(rows)+leadHTML(`Brama ${tN[type]} ${h}×${w}`,total));
+}
+function calcFu(){
+  const type=gv('fu-type');const h=gv('fu-size');
+  const mont=parseFloat(gv('fu-mont'))||0;const qty=parseInt(gv('fu-qty'))||1;
+  if(!h||!FU[type][h]){alert('Wybierz wysokość furtki!');return;}
+  const matP=FU[type][h]*MAR;const total=(matP+mont)*qty;
+  const tN={box:'DUOS BOX','2d':'DUOS 2D'};const w=type==='box'?'0.90':'1.00';
+  let rows=br(`Furtka ${tN[type]} ${h}m × ${w}m × ${qty} szt`,matP*qty);
+  if(mont>0)rows+=br(`Montaż ${qty} szt`,mont*qty);rows+=brt(total);
+  showRes('fu',pbox(`Furtka ${tN[type]}`,total,`${h}m · ${qty} szt · ${mont>0?'z montażem':'tylko materiał'}`)
+    +ntc('Ostateczna cena po pomiarze.')
+    +gratisBox()
+    +montazHint()
+    +bkdn(rows)+leadHTML(`Furtka ${tN[type]} ${h}m × ${qty}szt`,total));
+}
+function calcWi(){
+  const sqmVal=gv('wi-sqm');
+  const sqm=sqmVal==='custom'?Math.max(10,parseFloat(gv('wi-cv'))||24):parseFloat(sqmVal);
+  const mod=gv('wi-mode');const gate=gv('wi-gate')==='yes';
+  const perSqm=mod==='full'?WI_FULL:WI_MAT;const wC=sqm*perSqm*WI_M;
+  const gC=gate?BR.przes['1.70/4.00']*MAR*0.85+BR_INST.full.przes:0;
+  const total=wC+gC;const mL=mod==='full'?'Pod klucz':'Tylko materiał';
+  let rows=br(`Wiata stalowa ${sqm} m²`,wC);
+  if(gate)rows+=br('Brama przesuwna 4m (–15%)',gC);rows+=brt(total);
+  showRes('wi',pbox(`Wiata / Garaż · ${mL}`,total,`${sqm} m² · ~${fmt(total/sqm)} zł/m²${gate?' · z bramą':''}`)
+    +ntc('Ostateczna cena po pomiarze.')
+    +gratisBox()
+    +montazHint()
+    +bkdn(rows)+leadHTML(`Wiata ${sqm}m² ${mL}`,total));
+}
+
+// Init
+buildBr();
+buildFu();
+</script>
+
+<!-- ════════════════════════════════════════════════════════════
+     HIDDEN FIELDS (для Make.com)
+     ════════════════════════════════════════════════════════════ -->
+<input type="hidden" id="messenger_psid" value="">
+<input type="hidden" id="platform" value="">
+<input type="hidden" id="psid_source" value="">
+<input type="hidden" id="utm_source" value="">
+<input type="hidden" id="utm_medium" value="">
+<input type="hidden" id="utm_campaign" value="">
+
+
+</body>
+</html>
