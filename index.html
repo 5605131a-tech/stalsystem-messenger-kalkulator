@@ -292,6 +292,16 @@ body{
 .gratis-price{font-size:0.75rem;color:var(--gray);font-weight:600}
 .gratis-total{font-size:0.76rem;color:#059669;font-weight:700;text-align:center;padding-top:6px;border-top:1px solid #d1fae5}
 
+/* ── TILE IMAGE BUTTON ── */
+.tile-img-btn{position:absolute;bottom:4px;right:5px;font-size:0.7rem;cursor:pointer;opacity:0.65;line-height:1;border-radius:4px;padding:1px 3px;pointer-events:auto}
+.tile-img-btn:hover{opacity:1}
+/* ── IMAGE LIGHTBOX ── */
+.img-lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;align-items:center;justify-content:center;padding:16px;cursor:pointer}
+.img-lb.on{display:flex}
+.img-lb img{max-width:100%;max-height:88vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);object-fit:contain;cursor:default}
+.img-lb-x{position:absolute;top:14px;right:18px;color:#fff;font-size:2.4rem;cursor:pointer;line-height:1;font-weight:200;opacity:0.75;z-index:1}
+.img-lb-x:hover{opacity:1}
+.img-lb-cap{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.65);font-size:0.78rem;pointer-events:none}
 /* ── MONTAŻ DISCOUNT HINT ── */
 .montaz-hint{
   background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);
@@ -490,6 +500,21 @@ body{
     <div class="csub">Oblicz cenę dla swojej posesji</div>
 
     <div class="field">
+      <label>Grubość drutu <span style="font-weight:400;color:var(--gray)">— wybierz wersję</span></label>
+      <div class="tiles t2" id="og-thick-tiles">
+        <div class="tile on" onclick="selThick('4mm')">
+          <span style="font-size:1.1rem;font-weight:900">4 mm</span><br><s>standard</s>
+          <span class="tile-img-btn" onclick="event.stopPropagation();openImg('panel4mm')" title="Zobacz zdjęcie">📷</span>
+        </div>
+        <div class="tile" onclick="selThick('5mm')">
+          <span style="font-size:1.1rem;font-weight:900">5 mm</span><br><s>wzmocniony</s>
+          <span class="tile-img-btn" onclick="event.stopPropagation();openImg('panel5mm')" title="Zobacz zdjęcie">📷</span>
+        </div>
+      </div>
+      <input type="hidden" id="og-thick" value="4mm">
+    </div>
+
+    <div class="field">
       <label>Wysokość paneli</label>
       <div class="tiles t3" id="og-h-tiles">
         <div class="tile" onclick="sel('og-h','1.03')">1.03 m</div>
@@ -555,9 +580,9 @@ body{
     <div class="field">
       <label>Typ bramy</label>
       <div class="tiles t3">
-        <div class="tile on" onclick="sel('br-type','dwu');buildBr()">Dwuskrzydłowa</div>
-        <div class="tile" onclick="sel('br-type','przes');buildBr()">Przesuwna</div>
-        <div class="tile" onclick="sel('br-type','box');buildBr()">BOX</div>
+        <div class="tile on" onclick="sel('br-type','dwu');buildBr()">Dwuskrzydłowa<span class="tile-img-btn" onclick="event.stopPropagation();openImg('brama_dwu')">📷</span></div>
+        <div class="tile" onclick="sel('br-type','przes');buildBr()">Przesuwna<span class="tile-img-btn" onclick="event.stopPropagation();openImg('brama_przes')">📷</span></div>
+        <div class="tile" onclick="sel('br-type','box');buildBr()">BOX<span class="tile-img-btn" onclick="event.stopPropagation();openImg('brama_box')">📷</span></div>
       </div>
       <input type="hidden" id="br-type" value="dwu">
     </div>
@@ -603,8 +628,8 @@ body{
     <div class="field">
       <label>Typ furtki</label>
       <div class="tiles t2">
-        <div class="tile on" onclick="sel('fu-type','box');buildFu()">DUOS BOX</div>
-        <div class="tile" onclick="sel('fu-type','2d');buildFu()">DUOS 2D</div>
+        <div class="tile on" onclick="sel('fu-type','box');buildFu()">DUOS BOX<span class="tile-img-btn" onclick="event.stopPropagation();openImg('furtka_box')">📷</span></div>
+        <div class="tile" onclick="sel('fu-type','2d');buildFu()">DUOS 2D<span class="tile-img-btn" onclick="event.stopPropagation();openImg('furtka_2d')">📷</span></div>
       </div>
       <input type="hidden" id="fu-type" value="box">
     </div>
@@ -731,9 +756,13 @@ body{
 // PRICING CONSTANTS (MetFence)
 // ════════════════════════════════════════════════════════════
 const MAR=1.25;
+const PANEL={
+  '4mm':{'1.03':75,'1.23':81,'1.33':87,'1.53':98,'1.73':110,'2.03':127,'2.43':151},
+  '5mm':{'1.03':80,'1.23':87,'1.33':93,'1.53':105,'1.73':118,'2.03':136,'2.43':162}
+};
 const P={
   sw:2.5,
-  panel:{'1.03':75,'1.23':81,'1.33':87,'1.53':98,'1.73':110,'2.03':127,'2.43':151},
+  panel:PANEL['4mm'],
   post:{'1.23':28,'1.43':32,'1.73':38,'2.23':48,'2.63':58},
   cps:{'1.03':4,'1.23':4,'1.33':4,'1.53':6,'1.73':6,'2.03':6,'2.43':6},
   clip:1.2,
@@ -772,6 +801,33 @@ function sel(fid,val){
   }
 }
 function selNum(fid,val){sel(fid,val.toString());}
+function selThick(mm){
+  document.getElementById('og-thick').value=mm;
+  document.getElementById('og-thick-tiles').querySelectorAll('.tile').forEach(t=>t.classList.remove('on'));
+  event.target.closest('.tile').classList.add('on');
+  P.panel=PANEL[mm];
+}
+const IMGS={
+  'panel4mm':{src:'img/panel4mm.jpg',cap:'Panel 3D DUOS — drut 4mm (standard)'},
+  'panel5mm':{src:'img/panel5mm.jpg',cap:'Panel 3D DUOS — drut 5mm (wzmocniony)'},
+  'brama_dwu':{src:'img/brama_dwu.jpg',cap:'Brama dwuskrzydłowa DUOS'},
+  'brama_przes':{src:'img/brama_przes.jpg',cap:'Brama przesuwna DUOS'},
+  'brama_box':{src:'img/brama_box.jpg',cap:'Brama dwuskrzydłowa BOX'},
+  'furtka_box':{src:'img/furtka_box.jpg',cap:'Furtka DUOS BOX'},
+  'furtka_2d':{src:'img/furtka_2d.jpg',cap:'Furtka DUOS 2D'},
+};
+function openImg(key){
+  const d=IMGS[key];if(!d)return;
+  document.getElementById('img-lb-src').src=d.src;
+  document.getElementById('img-lb-cap').textContent=d.cap;
+  document.getElementById('img-lb').classList.add('on');
+  document.body.style.overflow='hidden';
+}
+function closeImg(){
+  document.getElementById('img-lb').classList.remove('on');
+  document.body.style.overflow='';
+  document.getElementById('img-lb-src').src='';
+}
 function buildBr(){
   const type=gv('br-type');
   const sizes=Object.keys(BR[type]);
@@ -1219,6 +1275,7 @@ function brt(t){return`<div class="brow"><span>RAZEM (orientacyjnie)</span><span
 // ════════════════════════════════════════════════════════════
 function calcOg(){
   const h=parseFloat(gv('og-h'));
+  const thick=gv('og-thick')||'4mm';
   const len=Math.min(500,Math.max(5,parseFloat(gv('og-len'))||30));
   const pod=gv('og-pod')==='yes';const mod=gv('og-mode');
   const lnd=parseFloat(gv('og-land'))||0;const led=parseFloat(gv('og-led'))||0;
@@ -1234,11 +1291,11 @@ function calcOg(){
   if(pod)rows+=br('Podmurówka',podM);
   if(mod==='full'){rows+=br(`Montaż — ${len}m`,len*P.inst[h]);if(pod)rows+=br('Montaż podmurówki',podI);}
   if(lndC>0)rows+=br('Krajobraz',lndC);if(ledC>0)rows+=br('LED',ledC);rows+=brt(total);
-  showRes('og',pbox(`Ogrodzenie 3D · ${mod==='full'?'Materiał + Montaż':'Tylko materiał'}`,total,`~${fmt(total/len)} zł/mb · ${len} m · dostawa osobno`)
+  showRes('og',pbox(`Ogrodzenie 3D · ${thick} · ${mod==='full'?'Materiał + Montaż':'Tylko materiał'}`,total,`~${fmt(total/len)} zł/mb · ${len} m · dostawa osobno`)
     +ntc('Ostateczna cena po pomiarze.')
     +gratisBox()
     +montazHint()
-    +bkdn(rows)+leadHTML(`Ogrodzenie 3D ${h}m × ${len}m`,total));
+    +bkdn(rows)+leadHTML(`Ogrodzenie 3D ${h}m drut ${thick} × ${len}m`,total));
 }
 function calcDl(){
   const h=parseFloat(gv('dl-h'));const len=Math.min(500,Math.max(5,parseFloat(gv('dl-len'))||20));
@@ -1315,6 +1372,13 @@ buildFu();
 <input type="hidden" id="utm_source" value="">
 <input type="hidden" id="utm_medium" value="">
 <input type="hidden" id="utm_campaign" value="">
+
+<!-- ── IMAGE LIGHTBOX ── -->
+<div class="img-lb" id="img-lb" onclick="closeImg()">
+  <div class="img-lb-x" onclick="closeImg()">×</div>
+  <img id="img-lb-src" src="" alt="" onclick="event.stopPropagation()">
+  <div class="img-lb-cap" id="img-lb-cap"></div>
+</div>
 
 
 </body>
