@@ -749,6 +749,27 @@ body{
   </div>
 </div>
 
+<!-- DRUT KOLCZASTY -->
+<div style="background:#fff;border-radius:20px;padding:20px 18px;margin-bottom:14px;box-shadow:0 2px 16px rgba(0,0,0,0.07);border:1.5px solid var(--border)">
+  <div style="font-size:1.1rem;font-weight:900;color:var(--navy);margin-bottom:3px">🔩 Drut kolczasty</div>
+  <div style="color:var(--gray);font-size:0.8rem;margin-bottom:14px">Drut OC i Razor Wire — cena po długości</div>
+  <div style="margin-bottom:14px">
+    <label style="display:block;font-weight:800;font-size:0.8rem;margin-bottom:7px;color:var(--navy)">Typ drutu</label>
+    <div class="tiles t2" style="margin-bottom:0">
+      <div class="tile on" onclick="selDrut(this,'oc')">Drut OC 1.8mm<br><s>130m / zwój</s></div>
+      <div class="tile" onclick="selDrut(this,'r500')">Razor Wire 500mm<br><s>10m / rolka</s><span class="tile-img-btn" onclick="event.stopPropagation();openImg('drut')" title="Zdjęcie">📷</span></div>
+      <div class="tile" onclick="selDrut(this,'r600')">Razor Wire 600mm<br><s>10m / rolka</s></div>
+    </div>
+    <input type="hidden" id="dr-typ" value="oc">
+  </div>
+  <div style="margin-bottom:14px">
+    <label style="display:block;font-weight:800;font-size:0.8rem;margin-bottom:7px;color:var(--navy)">Długość odcinka (m)</label>
+    <input type="number" id="dr-len" min="10" max="2000" step="10" value="100" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:0.92rem">
+  </div>
+  <button onclick="calcDr()" style="width:100%;padding:13px;background:linear-gradient(135deg,var(--navy),var(--navy-mid));color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.9rem;cursor:pointer;margin-bottom:8px">🧮 Oblicz cenę</button>
+  <div id="res-dr"></div>
+</div>
+
 </div>
 
 <script>
@@ -832,6 +853,29 @@ function closeImg(){
   document.body.style.overflow='';
   document.getElementById('img-lb-src').src='';
 }
+
+function selDrut(el,typ){
+  el.closest('.tiles').querySelectorAll('.tile').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('dr-typ').value=typ;
+}
+const DR_PRICE={'oc':122,'r500':351,'r600':358};
+const DR_UNIT={'oc':130,'r500':10,'r600':10};
+const DR_LABEL={'oc':'Drut OC 1.8mm (130m/zwój)','r500':'Razor Wire 500mm (10m/rolka)','r600':'Razor Wire 600mm (10m/rolka)'};
+function calcDr(){
+  const typ=document.getElementById('dr-typ').value||'oc';
+  const len=Math.min(2000,Math.max(10,parseFloat(document.getElementById('dr-len').value)||100));
+  const qty=Math.ceil(len/DR_UNIT[typ]);
+  const total=qty*DR_PRICE[typ];
+  const res=document.getElementById('res-dr');
+  res.innerHTML=pbox('Drut kolczasty — '+DR_LABEL[typ],total,
+    bkdn([br(DR_LABEL[typ]+' × '+qty+' szt.',total)])+
+    '<div class="pmeta">Długość: '+len+' m — '+qty+' '+(typ==='oc'?'zwojów':'rolek')+' × '+fmt(DR_PRICE[typ])+' zł</div>'+
+    leadHTML('Drut kolczasty '+DR_LABEL[typ]+' × '+qty,total)
+  );
+  res.style.display='block';
+}
+
 function buildBr(){
   const type=gv('br-type');
   const sizes=Object.keys(BR[type]);
