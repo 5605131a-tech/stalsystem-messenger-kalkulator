@@ -497,7 +497,7 @@ body{
 <div class="sec on" id="sec-og">
   <div class="card">
     <div class="ctitle">Ogrodzenie panelowe 3D</div>
-    <div class="csub">Oblicz cenę dla swojej posesji</div>
+    <div class="csub">Oblicz cenę dla swojej posesji &nbsp;<span style="cursor:pointer;opacity:0.6;font-size:0.85rem" onclick="openImg('slupek')" title="Zdjęcie słupka">📷 słupek</span></div>
 
     <div class="field">
       <label>Grubość drutu <span style="font-weight:400;color:var(--gray)">— wybierz wersję</span></label>
@@ -607,7 +607,7 @@ body{
       <label>Automatyka (opcjonalnie)</label>
       <div class="tiles t2">
         <div class="tile on" onclick="selNum('br-auto',0)">Bez automatyki</div>
-        <div class="tile" onclick="selNum('br-auto',2500)">Z automatyką<br><s>+2500 zł</s></div>
+        <div class="tile" onclick="selNum('br-auto',2500)">Z automatyką<br><s>+2500 zł</s><span class="tile-img-btn" onclick="event.stopPropagation();openImg('akcesoria')">📷</span></div>
       </div>
       <input type="hidden" id="br-auto" value="0">
     </div>
@@ -716,7 +716,7 @@ body{
      ════════════════════════════════════════════════════════════ -->
 <div class="sec" id="sec-dl">
   <div class="card">
-    <div class="ctitle">Ogrodzenie DELUXE</div>
+    <div class="ctitle">Ogrodzenie DELUXE <span class="tile-img-btn" style="position:static;font-size:0.9rem;opacity:0.7;cursor:pointer" onclick="openImg('deluxe')">📷</span></div>
     <div class="csub">Premium linia – wyjątkowa estetyka</div>
 
     <div class="field">
@@ -815,6 +815,10 @@ const IMGS={
   'brama_box':{src:'img/brama_box.jpg',cap:'Brama dwuskrzydłowa BOX'},
   'furtka_box':{src:'img/furtka_box.jpg',cap:'Furtka DUOS BOX'},
   'furtka_2d':{src:'img/furtka_2d.jpg',cap:'Furtka DUOS 2D'},
+  'slupek':{src:'img/slupek.jpg',cap:'Słupek ogrodzeniowy DUOS'},
+  'akcesoria':{src:'img/akcesoria.jpg',cap:'Automatyka do bramy'},
+  'deluxe':{src:'img/deluxe.jpg',cap:'Ogrodzenie DELUXE — premium'},
+  'drut':{src:'img/drut.jpg',cap:'Drut kolczasty / Razor Wire'},
 };
 function openImg(key){
   const d=IMGS[key];if(!d)return;
